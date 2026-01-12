@@ -1,0 +1,814 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
+// Types matching the API response structure
+interface Task {
+  title: string;
+  description: string;
+  acceptance_criteria: string[];
+}
+
+interface SubBug {
+  title: string;
+  description: string;
+  acceptance_criteria: string[];
+}
+
+interface UserStory {
+  title: string;
+  description: string;
+  tasks: Task[];
+  sub_bugs: SubBug[];
+}
+
+interface Bug {
+  title: string;
+  description: string;
+  tasks: Task[];
+  sub_bugs: SubBug[];
+}
+
+interface Feature {
+  title: string;
+  description: string;
+  user_stories: UserStory[];
+  bugs: Bug[];
+}
+
+interface Epic {
+  title: string;
+  description: string;
+  features: Feature[];
+}
+
+interface GenerateTasksResponse {
+  epics: Epic[];
+}
+
+/**
+ * Generate a unique user ID and store it in localStorage
+ * This ensures user isolation - each user gets their own ID
+ */
+function getOrCreateUserId(): string {
+  const STORAGE_KEY = 'tecnops_user_id';
+  
+  // Check if userId already exists in localStorage
+  const existingUserId = localStorage.getItem(STORAGE_KEY);
+  if (existingUserId) {
+    return existingUserId;
+  }
+  
+  // Generate a new UUID-like string
+  const newUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  localStorage.setItem(STORAGE_KEY, newUserId);
+  return newUserId;
+}
+
+/**
+ * Main page component for the AI Task Generator POC
+ * 
+ * This is a minimal frontend for testing the AI task generation feature.
+ * It provides:
+ * - User isolation via localStorage-based userId
+ * - Simple form to input project details
+ * - API integration with loading/error states
+ * - Readable display of generated task hierarchy
+ */
+export default function Home() {
+  const [userId, setUserId] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>('');
+  const [scope, setScope] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<GenerateTasksResponse | null>(null);
+
+  // Initialize userId on component mount
+  useEffect(() => {
+    setUserId(getOrCreateUserId());
+  }, []);
+
+  /**
+   * Handle form submission - call the API endpoint
+   */
+  const handleGenerate = async () => {
+    // Reset previous state
+    setError(null);
+    setResult(null);
+    
+    // Validate inputs
+    if (!projectName.trim()) {
+      setError('Project name is required');
+      return;
+    }
+    
+    if (!scope.trim()) {
+      setError('Project scope is required');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/ai/generate-tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          projectName: projectName.trim(),
+          scope: scope.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate tasks');
+      }
+
+      setResult(data as GenerateTasksResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#f8f9fa',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    }}>
+      <div style={{ 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
+        padding: '3rem 2rem',
+      }}>
+        {/* Header */}
+        <div style={{ 
+          marginBottom: '3rem',
+          textAlign: 'center',
+        }}>
+          <h1 style={{ 
+            margin: '0 0 0.5rem 0',
+            fontSize: '2.5rem',
+            fontWeight: '700',
+            color: '#1a1a1a',
+            letterSpacing: '-0.02em',
+          }}>
+            AI Task Generator
+          </h1>
+          <p style={{
+            margin: 0,
+            fontSize: '1.125rem',
+            color: '#6c757d',
+            fontWeight: '400',
+          }}>
+            Generate structured project tasks with AI
+          </p>
+        </div>
+
+        {/* User ID display (for debugging) */}
+        <div style={{ 
+          marginBottom: '2rem', 
+          fontSize: '0.75rem', 
+          color: '#adb5bd',
+          textAlign: 'center',
+        }}>
+          User ID: {userId || 'Loading...'}
+        </div>
+
+        {/* Input Form Card */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '2.5rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          marginBottom: '2rem',
+        }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label 
+              htmlFor="projectName" 
+              style={{ 
+                display: 'block', 
+                marginBottom: '0.75rem', 
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                color: '#495057',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Project Name *
+            </label>
+            <input
+              id="projectName"
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="Enter project name"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '0.875rem 1rem',
+                border: '2px solid #e9ecef',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                color: '#212529',
+                backgroundColor: 'white',
+                transition: 'all 0.2s ease',
+                outline: 'none',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#0070f3';
+                e.target.style.boxShadow = '0 0 0 3px rgba(0, 112, 243, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e9ecef';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '2rem' }}>
+            <label 
+              htmlFor="scope" 
+              style={{ 
+                display: 'block', 
+                marginBottom: '0.75rem', 
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                color: '#495057',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Project Scope *
+            </label>
+            <textarea
+              id="scope"
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+              placeholder="Enter project scope description..."
+              disabled={loading}
+              rows={10}
+              style={{
+                width: '100%',
+                padding: '0.875rem 1rem',
+                border: '2px solid #e9ecef',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontFamily: 'inherit',
+                color: '#212529',
+                backgroundColor: 'white',
+                resize: 'vertical',
+                transition: 'all 0.2s ease',
+                outline: 'none',
+                lineHeight: '1.6',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#0070f3';
+                e.target.style.boxShadow = '0 0 0 3px rgba(0, 112, 243, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e9ecef';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={loading || !projectName.trim() || !scope.trim()}
+            style={{
+              width: '100%',
+              padding: '1rem 2rem',
+              fontSize: '1rem',
+              fontWeight: '600',
+              backgroundColor: loading ? '#adb5bd' : '#0070f3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: loading ? 'none' : '0 4px 6px -1px rgba(0, 112, 243, 0.3)',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading && projectName.trim() && scope.trim()) {
+                e.currentTarget.style.backgroundColor = '#0051cc';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 12px -1px rgba(0, 112, 243, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading && projectName.trim() && scope.trim()) {
+                e.currentTarget.style.backgroundColor = '#0070f3';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 112, 243, 0.3)';
+              }
+            }}
+          >
+            {loading ? 'Generating...' : 'Generate tasks with AI'}
+          </button>
+        </div>
+
+        {/* Error Display */}
+        {error && (
+          <div
+            style={{
+              padding: '1.25rem 1.5rem',
+              backgroundColor: '#fff5f5',
+              border: '2px solid #fecaca',
+              borderRadius: '12px',
+              color: '#dc2626',
+              marginBottom: '2rem',
+              boxShadow: '0 2px 4px -1px rgba(220, 38, 38, 0.1)',
+            }}
+          >
+            <strong style={{ fontWeight: '600' }}>Error:</strong> {error}
+          </div>
+        )}
+
+        {/* Results Display */}
+        {result && <TaskHierarchyDisplay data={result} />}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Component to display the task hierarchy in a collapsible card format
+ * Shows Epics → Features → (User Stories | Bugs) → (Tasks | Sub-bugs)
+ */
+function TaskHierarchyDisplay({ data }: { data: GenerateTasksResponse }) {
+  return (
+    <div style={{ marginTop: '2rem' }}>
+      <h2 style={{ 
+        marginBottom: '2rem', 
+        fontSize: '1.75rem', 
+        fontWeight: '700',
+        color: '#1a1a1a',
+        letterSpacing: '-0.01em',
+      }}>
+        Generated Task Structure
+      </h2>
+      
+      {data.epics.length === 0 ? (
+        <div style={{ 
+          color: '#6c757d', 
+          padding: '2rem', 
+          backgroundColor: 'white', 
+          borderRadius: '12px',
+          textAlign: 'center',
+          boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        }}>
+          No epics generated.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {data.epics.map((epic, epicIndex) => (
+            <EpicCard key={epicIndex} epic={epic} index={epicIndex} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Collapsible Epic Card Component
+ */
+function EpicCard({ epic, index }: { epic: Epic; index: number }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  return (
+    <CollapsibleCard
+      level={0}
+      title={`Epic: ${epic.title}`}
+      description={epic.description}
+      isExpanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
+      badge={`${epic.features.length} feature${epic.features.length !== 1 ? 's' : ''}`}
+      badgeColor="#0070f3"
+    >
+      {epic.features.length === 0 ? (
+        <EmptyState message="No features in this epic" />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+          {epic.features.map((feature, featureIndex) => (
+            <FeatureCard key={featureIndex} feature={feature} index={featureIndex} />
+          ))}
+        </div>
+      )}
+    </CollapsibleCard>
+  );
+}
+
+/**
+ * Collapsible Feature Card Component
+ */
+function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const totalItems = feature.user_stories.length + feature.bugs.length;
+
+  return (
+    <CollapsibleCard
+      level={1}
+      title={`Feature: ${feature.title}`}
+      description={feature.description}
+      isExpanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
+      badge={`${totalItems} item${totalItems !== 1 ? 's' : ''}`}
+      badgeColor="#6c5ce7"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+        {feature.user_stories.length > 0 && (
+          <div>
+            <SectionHeader 
+              title={`User Stories (${feature.user_stories.length})`} 
+              color="#0070f3" 
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+              {feature.user_stories.map((userStory, usIndex) => (
+                <UserStoryCard key={usIndex} userStory={userStory} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {feature.bugs.length > 0 && (
+          <div>
+            <SectionHeader 
+              title={`Bugs (${feature.bugs.length})`} 
+              color="#e74c3c" 
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+              {feature.bugs.map((bug, bugIndex) => (
+                <BugCard key={bugIndex} bug={bug} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </CollapsibleCard>
+  );
+}
+
+/**
+ * Collapsible User Story Card Component
+ */
+function UserStoryCard({ userStory }: { userStory: UserStory }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const totalItems = userStory.tasks.length + userStory.sub_bugs.length;
+
+  return (
+    <CollapsibleCard
+      level={2}
+      title={userStory.title}
+      description={userStory.description}
+      isExpanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
+      badge={totalItems > 0 ? `${totalItems} item${totalItems !== 1 ? 's' : ''}` : undefined}
+      badgeColor="#0070f3"
+      borderColor="#0070f3"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
+        {userStory.tasks.length > 0 && (
+          <div>
+            <SectionHeader title={`Tasks (${userStory.tasks.length})`} color="#333" size="small" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {userStory.tasks.map((task, taskIndex) => (
+                <TaskCard key={taskIndex} task={task} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {userStory.sub_bugs.length > 0 && (
+          <div>
+            <SectionHeader title={`Sub-bugs (${userStory.sub_bugs.length})`} color="#e74c3c" size="small" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {userStory.sub_bugs.map((subBug, sbIndex) => (
+                <SubBugCard key={sbIndex} subBug={subBug} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </CollapsibleCard>
+  );
+}
+
+/**
+ * Collapsible Bug Card Component
+ */
+function BugCard({ bug }: { bug: Bug }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const totalItems = bug.tasks.length + bug.sub_bugs.length;
+
+  return (
+    <CollapsibleCard
+      level={2}
+      title={bug.title}
+      description={bug.description}
+      isExpanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
+      badge={totalItems > 0 ? `${totalItems} item${totalItems !== 1 ? 's' : ''}` : undefined}
+      badgeColor="#e74c3c"
+      borderColor="#e74c3c"
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
+        {bug.tasks.length > 0 && (
+          <div>
+            <SectionHeader title={`Tasks (${bug.tasks.length})`} color="#333" size="small" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {bug.tasks.map((task, taskIndex) => (
+                <TaskCard key={taskIndex} task={task} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {bug.sub_bugs.length > 0 && (
+          <div>
+            <SectionHeader title={`Sub-bugs (${bug.sub_bugs.length})`} color="#e74c3c" size="small" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {bug.sub_bugs.map((subBug, sbIndex) => (
+                <SubBugCard key={sbIndex} subBug={subBug} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </CollapsibleCard>
+  );
+}
+
+/**
+ * Task Card Component (Leaf node - not collapsible)
+ */
+function TaskCard({ task }: { task: Task }) {
+  return (
+    <div
+      style={{
+        padding: '1rem',
+        backgroundColor: 'white',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        marginLeft: '1rem',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      }}
+    >
+      <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#212529' }}>
+        {task.title}
+      </div>
+      <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.75rem' }}>
+        {task.description}
+      </div>
+      {task.acceptance_criteria.length > 0 && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#495057', marginBottom: '0.5rem' }}>
+            Acceptance Criteria:
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: '#6c757d' }}>
+            {task.acceptance_criteria.map((criteria, critIndex) => (
+              <li key={critIndex} style={{ marginBottom: '0.25rem' }}>{criteria}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Sub-bug Card Component (Leaf node - not collapsible)
+ */
+function SubBugCard({ subBug }: { subBug: SubBug }) {
+  return (
+    <div
+      style={{
+        padding: '1rem',
+        backgroundColor: 'white',
+        border: '1px solid #fecaca',
+        borderRadius: '8px',
+        marginLeft: '1rem',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      }}
+    >
+      <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#c92a2a' }}>
+        {subBug.title}
+      </div>
+      <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.75rem' }}>
+        {subBug.description}
+      </div>
+      {subBug.acceptance_criteria.length > 0 && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #ffcccc' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#c92a2a', marginBottom: '0.5rem' }}>
+            Acceptance Criteria:
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: '#6c757d' }}>
+            {subBug.acceptance_criteria.map((criteria, critIndex) => (
+              <li key={critIndex} style={{ marginBottom: '0.25rem' }}>{criteria}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Reusable Collapsible Card Component
+ */
+function CollapsibleCard({
+  level,
+  title,
+  description,
+  isExpanded,
+  onToggle,
+  children,
+  badge,
+  badgeColor = '#6c757d',
+  borderColor,
+}: {
+  level: number;
+  title: string;
+  description: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  badge?: string;
+  badgeColor?: string;
+  borderColor?: string;
+}) {
+  // Calculate indentation and styling based on level
+  const levelStyles = [
+    { marginLeft: '0', borderLeft: '4px solid #0070f3' },
+    { marginLeft: '1rem', borderLeft: '4px solid #6c5ce7' },
+    { marginLeft: '2rem', borderLeft: '4px solid #0070f3' },
+  ];
+
+  const style = levelStyles[Math.min(level, 2)] || levelStyles[2];
+  const borderColorStyle = borderColor ? { borderLeftColor: borderColor } : {};
+
+  return (
+    <div
+      style={{
+        ...style,
+        ...borderColorStyle,
+        backgroundColor: 'white',
+        border: '1px solid #e9ecef',
+        borderRadius: '12px',
+        boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        overflow: 'hidden',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          padding: '1.25rem 1.5rem',
+          backgroundColor: 'transparent',
+          border: 'none',
+          textAlign: 'left',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          transition: 'background-color 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#f8f9fa';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease',
+                fontSize: '0.75rem',
+                color: '#6c757d',
+                backgroundColor: '#f1f3f5',
+                borderRadius: '4px',
+                flexShrink: 0,
+              }}
+            >
+              ▶
+            </span>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: level === 0 ? '1.25rem' : level === 1 ? '1.1rem' : '1rem',
+                fontWeight: '600',
+                color: level === 0 ? '#0070f3' : level === 1 ? '#6c5ce7' : '#333',
+              }}
+            >
+              {title}
+            </h3>
+            {badge && (
+              <span
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  backgroundColor: badgeColor,
+                  color: 'white',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '500',
+                }}
+              >
+                {badge}
+              </span>
+            )}
+          </div>
+          <p
+            style={{
+              margin: '0.5rem 0 0 0',
+              fontSize: '0.9375rem',
+              color: '#6c757d',
+              lineHeight: '1.6',
+            }}
+          >
+            {description}
+          </p>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div
+          style={{
+            padding: '1.5rem',
+            borderTop: '1px solid #e9ecef',
+            backgroundColor: '#f8f9fa',
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Section Header Component
+ */
+function SectionHeader({
+  title,
+  color,
+  size = 'medium',
+}: {
+  title: string;
+  color: string;
+  size?: 'small' | 'medium';
+}) {
+  return (
+    <div
+      style={{
+        fontSize: size === 'small' ? '0.875rem' : '1rem',
+        fontWeight: '600',
+        color: color,
+        marginBottom: '0.5rem',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+      }}
+    >
+      {title}
+    </div>
+  );
+}
+
+/**
+ * Empty State Component
+ */
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        padding: '2rem',
+        textAlign: 'center',
+        color: '#adb5bd',
+        fontStyle: 'italic',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        border: '1px dashed #dee2e6',
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
