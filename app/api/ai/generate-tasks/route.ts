@@ -1,56 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SYSTEM_PROMPT } from '@/lib/prompts';
-import { callOpenAI } from '@/lib/openai-client';
-
-// Type definitions for the API request and response
-interface GenerateTasksRequest {
-  userId?: string; // Optional: for user isolation (frontend POC)
-  projectName?: string; // Optional: for user isolation (frontend POC)
-  scope: string;
-}
-
-interface Task {
-  title: string;
-  description: string;
-  acceptance_criteria: string[];
-}
-
-interface SubBug {
-  title: string;
-  description: string;
-  acceptance_criteria: string[];
-}
-
-interface UserStory {
-  title: string;
-  description: string;
-  tasks: Task[];
-  sub_bugs: SubBug[];
-}
-
-interface Bug {
-  title: string;
-  description: string;
-  tasks: Task[];
-  sub_bugs: SubBug[];
-}
-
-interface Feature {
-  title: string;
-  description: string;
-  user_stories: UserStory[];
-  bugs: Bug[];
-}
-
-interface Epic {
-  title: string;
-  description: string;
-  features: Feature[];
-}
-
-interface GenerateTasksResponse {
-  epics: Epic[];
-}
+import { HumanMessage } from '@langchain/core/messages';
+import { backlogAgent } from '@/lib/agent';
+import type { GenerateTasksRequest, GenerateTasksResponse } from '@/lib/types';
 
 /**
  * POST /api/ai/generate-tasks
@@ -134,26 +85,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call OpenAI GPT-5.2 with the system prompt and user scope
-    const modelResponse = await callOpenAI(SYSTEM_PROMPT, body.scope.trim());
+    // Use Langchain agent to generate structured backlog
+    // The agent uses the TECNOPS hierarchy rules and returns structured JSON
+    const userMessage = body.projectName 
+      ? `Project: ${body.projectName}\n\nScope: ${body.scope.trim()}`
+      : body.scope.trim();
 
-    // Parse the JSON response from the model
-    // The model should return valid JSON matching our GenerateTasksResponse structure
+    // Invoke the agent with the user message
+    // The agent expects HumanMessage objects from Langchain
+    const agentResponse = await backlogAgent.invoke({
+      messages: [new HumanMessage(userMessage)],
+    });
+
+    // The agent returns structured data matching backlogSchema
+    // The response format ensures the output matches the Zod schema
     let parsedResponse: GenerateTasksResponse;
-    try {
-      parsedResponse = JSON.parse(modelResponse);
-    } catch (parseError) {
-      // If the response is not valid JSON, return an error
-      return NextResponse.json(
-        { error: 'Invalid response format from AI model. Expected valid JSON.' },
-        { status: 500 }
-      );
+    
+    // Extract structured response from agent state
+    // When using responseFormat, the result is in structuredResponse
+    if (agentResponse.structuredResponse) {
+      parsedResponse = agentResponse.structuredResponse as GenerateTasksResponse;
+    } else {
+      // Fallback: use the entire response object (shouldn't happen with responseFormat)
+      console.warn('Agent response missing structuredResponse, using full response object');
+      parsedResponse = agentResponse as unknown as GenerateTasksResponse;
     }
 
     // Validate that the response has the expected structure
-    if (!parsedResponse.epics || !Array.isArray(parsedResponse.epics)) {
+    if (!parsedResponse || !parsedResponse.epics || !Array.isArray(parsedResponse.epics)) {
+      console.error('Invalid agent response structure:', JSON.stringify(agentResponse, null, 2));
       return NextResponse.json(
-        { error: 'Invalid response structure from AI model. Expected "epics" array.' },
+        { 
+          error: 'Invalid response structure from AI agent. Expected "epics" array.',
+          details: 'The agent did not return the expected TECNOPS hierarchy structure.'
+        },
         { status: 500 }
       );
     }
@@ -162,6 +127,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(parsedResponse);
 
   } catch (error) {
+    // Log error for debugging
+    console.error('Error in generate-tasks route:', error);
+    
     // Handle JSON parsing errors (malformed request body)
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -171,16 +139,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle OpenAI API errors
-    if (error instanceof Error && error.message.includes('OpenAI')) {
+    if (error instanceof Error) {
+      if (error.message.includes('OpenAI') || error.message.includes('API')) {
+        return NextResponse.json(
+          { error: `OpenAI API error: ${error.message}` },
+          { status: 500 }
+        );
+      }
+      
+      // Return the error message for other errors
       return NextResponse.json(
-        { error: `OpenAI API error: ${error.message}` },
+        { error: `Error: ${error.message}` },
         { status: 500 }
       );
     }
 
     // Handle any other unexpected errors
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }

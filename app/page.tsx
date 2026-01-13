@@ -1,50 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-// Types matching the API response structure
-interface Task {
-  title: string;
-  description: string;
-  acceptance_criteria: string[];
-}
-
-interface SubBug {
-  title: string;
-  description: string;
-  acceptance_criteria: string[];
-}
-
-interface UserStory {
-  title: string;
-  description: string;
-  tasks: Task[];
-  sub_bugs: SubBug[];
-}
-
-interface Bug {
-  title: string;
-  description: string;
-  tasks: Task[];
-  sub_bugs: SubBug[];
-}
-
-interface Feature {
-  title: string;
-  description: string;
-  user_stories: UserStory[];
-  bugs: Bug[];
-}
-
-interface Epic {
-  title: string;
-  description: string;
-  features: Feature[];
-}
-
-interface GenerateTasksResponse {
-  epics: Epic[];
-}
+import type { 
+  GenerateTasksResponse,
+  Epic,
+  Feature,
+  UserStory,
+  Bug,
+  Task,
+  SubBug,
+} from '@/lib/types';
 
 /**
  * Generate a unique user ID and store it in localStorage
@@ -110,6 +75,7 @@ export default function Home() {
     setLoading(true);
 
     try {
+      console.log('Sending request to API...');
       const response = await fetch('/api/ai/generate-tasks', {
         method: 'POST',
         headers: {
@@ -122,14 +88,17 @@ export default function Home() {
         }),
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate tasks');
+        throw new Error(data.error || `Failed to generate tasks (${response.status})`);
       }
 
       setResult(data as GenerateTasksResponse);
     } catch (err) {
+      console.error('Error generating tasks:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -167,7 +136,7 @@ export default function Home() {
             color: '#6c757d',
             fontWeight: '400',
           }}>
-            Generate structured project tasks with AI
+            Generate structured project tasks with AI Agent (Langchain)
           </p>
         </div>
 
@@ -281,6 +250,7 @@ export default function Home() {
           </div>
 
           <button
+            type="button"
             onClick={handleGenerate}
             disabled={loading || !projectName.trim() || !scope.trim()}
             style={{
@@ -311,7 +281,7 @@ export default function Home() {
               }
             }}
           >
-            {loading ? 'Generating...' : 'Generate tasks with AI'}
+            {loading ? 'Generating with AI Agent...' : 'Generate tasks with AI Agent'}
           </button>
         </div>
 
