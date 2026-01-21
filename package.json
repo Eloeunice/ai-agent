@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@langchain/openai": "^1.2.1",
+    "@supabase/supabase-js": "^2.91.0",
     "langchain": "^1.2.7",
+    "mammoth": "^1.11.0",
     "next": "^14.0.0",
     "openai": "^4.20.0",
     "react": "^18.2.0",

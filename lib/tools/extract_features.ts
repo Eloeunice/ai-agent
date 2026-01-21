@@ -3,6 +3,8 @@ import {
   generateFeaturesInputSchema,
   generateFeaturesOutputSchema,
 } from "../schemas/featureSchema";
+import { featurePrompt } from "../prompts/featurePrompt";
+import { model } from "../ai/client";
 
 const log = {
   info: (msg: string, data?: unknown) =>
@@ -21,15 +23,10 @@ export const generateFeaturesForEpicTool = tool(
         generateFeaturesInputSchema.parse(input);
 
       // 2️⃣ Geração das features (LLM)
-      const rawOutput = {
-        features: [
-          {
-            title: "Cadastro de usuários",
-            description: `Permitir cadastro de usuários relacionado ao épico "${epicTitle}".`,
-          },
-        ],
-      };
-
+      const prompt = featurePrompt(epicTitle, epicDescription, projectGoal);
+      const llmResponse = await model.invoke(prompt);
+      const rawOutput = JSON.parse(llmResponse.content as string);
+    
       // 3️⃣ Validação de output
       const validatedOutput =
         generateFeaturesOutputSchema.parse(rawOutput);

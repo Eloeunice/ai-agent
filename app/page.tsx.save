@@ -1,20 +1,10 @@
 'use client';
-
-import { useState, useEffect } from 'react';
-import type { 
-  GenerateTasksResponse,
-  Epic,
-  Feature,
-  UserStory,
-  Bug,
-  Task,
-  SubBug,
-} from '@/lib/types';
-
-/**
- * Generate a unique user ID and store it in localStorage
- * This ensures user isolation - each user gets their own ID
- */
+}
+import { useState, useEffect } from 'react'; import type { [generate_tasks][INFO] Tool iniciada { GenerateTasksResponse, storyTitle: 'Redirecionamento 
+  rápido e confiável para usuários finais', Epic, Feature, UserStory, Bug, Task, SubBug, storyDescription: 'As a user, I want to be redirected to the 
+  destination page quickly and reliably when I access a link so that I can reach the content without delays or errors.'} from '@/lib/types';
+}
+/** * Generate a unique user ID and store it in localStorage * This ensures user isolation - each user gets their own ID */
 function getOrCreateUserId(): string {
   const STORAGE_KEY = 'tecnops_user_id';
   
@@ -44,17 +34,9 @@ export default function Home() {
   const [userId, setUserId] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
   const [scope, setScope] = useState<string>('');
-  const [docxFile, setDocxFile] = useState<File | null>(null);
-  const [inputType, setInputType] = useState<'project' | 'feature'>('project');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateTasksResponse | null>(null);
-  const [exportData, setExportData] = useState<{
-    json?: string;
-    markdown?: string;
-    text?: string;
-    stats?: any;
-  } | null>(null);
 
   // Initialize userId on component mount
   useEffect(() => {
@@ -62,31 +44,12 @@ export default function Home() {
   }, []);
 
   /**
-   * Handle file selection
-   */
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.name.endsWith('.docx')) {
-        setError('Por favor, selecione um arquivo .docx');
-        return;
-      }
-      setDocxFile(file);
-      setScope(''); // Limpa o texto quando um arquivo é selecionado
-      setError(null);
-    }
-  };
-
-  /**
    * Handle form submission - call the API endpoint
    */
   const handleGenerate = async () => {
-    console.log('handleGenerate called', { projectName, hasDocxFile: !!docxFile, scopeLength: scope.length, inputType });
-    
     // Reset previous state
     setError(null);
     setResult(null);
-    setExportData(null);
     
     // Validate inputs
     if (!projectName.trim()) {
@@ -94,46 +57,26 @@ export default function Home() {
       return;
     }
     
-    // Valida se tem arquivo DOCX ou texto
-    if (!docxFile && !scope.trim()) {
-      setError('Por favor, forneça o escopo do projeto (texto ou arquivo DOCX)');
+    if (!scope.trim()) {
+      setError('Project scope is required');
       return;
     }
 
     setLoading(true);
-    console.log('Starting request...');
 
     try {
       console.log('Sending request to API...');
-      
-      let response: Response;
-      
-      if (docxFile) {
-        // Envia arquivo DOCX via FormData
-        const formData = new FormData();
-        formData.append('file', docxFile);
-        formData.append('projectName', projectName.trim());
-        formData.append('inputType', inputType);
-        
-        response = await fetch('/api/ai/generate-tasks', {
-          method: 'POST',
-          body: formData,
-        });
-      } else {
-        // Envia texto via JSON
-        response = await fetch('/api/ai/generate-tasks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId,
-            projectName: projectName.trim(),
-            scope: scope.trim(),
-            inputType,
-          }),
-        });
-      }
+      const response = await fetch('/api/ai/generate-tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          projectName: projectName.trim(),
+          scope: scope.trim(),
+        }),
+      });
 
       console.log('Response status:', response.status);
       const data = await response.json();
@@ -143,35 +86,10 @@ export default function Home() {
         throw new Error(data.error || `Failed to generate tasks (${response.status})`);
       }
 
-      // A API agora retorna { backlog, stats, export, source }
-      // Extrai o backlog para compatibilidade com o componente
-      const backlogData = data.backlog || data;
-      
-      // Valida se tem epics
-      if (!backlogData || !backlogData.epics || !Array.isArray(backlogData.epics)) {
-        throw new Error('Resposta inválida da API: estrutura de backlog não encontrada');
-      }
-      
-      setResult(backlogData as GenerateTasksResponse);
-      
-      // Armazena dados completos para download
-      if (data.export) {
-        setExportData({
-          json: data.export.json,
-          markdown: data.export.markdown,
-          text: data.export.text,
-          stats: data.stats,
-        });
-      } else {
-        setExportData(null);
-      }
+      setResult(data as GenerateTasksResponse);
     } catch (err) {
       console.error('Error generating tasks:', err);
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : 'An unexpected error occurred';
-      setError(errorMessage);
-      setResult(null);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -274,126 +192,6 @@ export default function Home() {
             />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label 
-              htmlFor="inputType" 
-              style={{ 
-                display: 'block', 
-                marginBottom: '0.75rem', 
-                fontWeight: '600',
-                fontSize: '0.875rem',
-                color: '#495057',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Tipo de Entrada *
-            </label>
-            <select
-              id="inputType"
-              value={inputType}
-              onChange={(e) => setInputType(e.target.value as 'project' | 'feature')}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.875rem 1rem',
-                border: '2px solid #e9ecef',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                color: '#212529',
-                backgroundColor: 'white',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#0070f3';
-                e.target.style.boxShadow = '0 0 0 3px rgba(0, 112, 243, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e9ecef';
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              <option value="project">Projeto Completo (épicos → features → stories → tasks)</option>
-              <option value="feature">Feature Existente (stories → tasks apenas)</option>
-            </select>
-            <p style={{
-              marginTop: '0.5rem',
-              fontSize: '0.875rem',
-              color: '#6c757d',
-              lineHeight: '1.5',
-            }}>
-              {inputType === 'project' 
-                ? 'Use quando tiver uma descrição completa do projeto e quiser gerar toda a hierarquia.'
-                : 'Use quando já tiver uma feature definida e precisar apenas de user stories e tasks.'}
-            </p>
-          </div>
-
-          <div style={{ marginBottom: '2rem' }}>
-            <label 
-              htmlFor="docxFile" 
-              style={{ 
-                display: 'block', 
-                marginBottom: '0.75rem', 
-                fontWeight: '600',
-                fontSize: '0.875rem',
-                color: '#495057',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Ou envie um documento DOCX
-            </label>
-            <input
-              id="docxFile"
-              type="file"
-              accept=".docx"
-              onChange={handleFileChange}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.875rem 1rem',
-                border: '2px solid #e9ecef',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                color: '#212529',
-                backgroundColor: 'white',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#0070f3';
-                e.target.style.boxShadow = '0 0 0 3px rgba(0, 112, 243, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e9ecef';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-            {docxFile && (
-              <div style={{ 
-                marginTop: '0.5rem', 
-                fontSize: '0.875rem', 
-                color: '#28a745',
-                fontWeight: '500',
-              }}>
-                Arquivo selecionado: {docxFile.name}
-              </div>
-            )}
-          </div>
-
-          <div style={{ 
-            marginBottom: '2rem', 
-            textAlign: 'center',
-            color: '#6c757d',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-          }}>
-            OU
-          </div>
-
           <div style={{ marginBottom: '2rem' }}>
             <label 
               htmlFor="scope" 
@@ -407,19 +205,14 @@ export default function Home() {
                 letterSpacing: '0.05em',
               }}
             >
-              Project Scope (texto) *
+              Project Scope *
             </label>
             <textarea
               id="scope"
               value={scope}
-              onChange={(e) => {
-                setScope(e.target.value);
-                if (e.target.value.trim()) {
-                  setDocxFile(null); // Limpa o arquivo quando texto é digitado
-                }
-              }}
+              onChange={(e) => setScope(e.target.value)}
               placeholder="Enter project scope description..."
-              disabled={loading || !!docxFile}
+              disabled={loading}
               rows={10}
               style={{
                 width: '100%',
@@ -429,12 +222,11 @@ export default function Home() {
                 fontSize: '1rem',
                 fontFamily: 'inherit',
                 color: '#212529',
-                backgroundColor: docxFile ? '#f8f9fa' : 'white',
+                backgroundColor: 'white',
                 resize: 'vertical',
                 transition: 'all 0.2s ease',
                 outline: 'none',
                 lineHeight: '1.6',
-                cursor: docxFile ? 'not-allowed' : 'text',
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = '#0070f3';
@@ -449,12 +241,8 @@ export default function Home() {
 
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              console.log('Button clicked!', { loading, projectName, hasDocxFile: !!docxFile, scopeLength: scope.length });
-              handleGenerate();
-            }}
-            disabled={loading || !projectName.trim() || (!docxFile && !scope.trim())}
+            onClick={handleGenerate}
+            disabled={loading || !projectName.trim() || !scope.trim()}
             style={{
               width: '100%',
               padding: '1rem 2rem',
@@ -469,14 +257,14 @@ export default function Home() {
               boxShadow: loading ? 'none' : '0 4px 6px -1px rgba(0, 112, 243, 0.3)',
             }}
             onMouseEnter={(e) => {
-              if (!loading && projectName.trim() && (docxFile || scope.trim())) {
+              if (!loading && projectName.trim() && scope.trim()) {
                 e.currentTarget.style.backgroundColor = '#0051cc';
                 e.currentTarget.style.transform = 'translateY(-1px)';
                 e.currentTarget.style.boxShadow = '0 6px 12px -1px rgba(0, 112, 243, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
-              if (!loading && projectName.trim() && (docxFile || scope.trim())) {
+              if (!loading && projectName.trim() && scope.trim()) {
                 e.currentTarget.style.backgroundColor = '#0070f3';
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 112, 243, 0.3)';
@@ -505,12 +293,7 @@ export default function Home() {
         )}
 
         {/* Results Display */}
-        {result && (
-          <>
-            <TaskHierarchyDisplay data={result} />
-            {exportData && <ExportButtons exportData={exportData} projectName={projectName} />}
-          </>
-        )}
+        {result && <TaskHierarchyDisplay data={result} />}
       </div>
     </div>
   );
@@ -533,7 +316,7 @@ function TaskHierarchyDisplay({ data }: { data: GenerateTasksResponse }) {
         Generated Task Structure
       </h2>
       
-      {!data.epics || data.epics.length === 0 ? (
+      {data.epics.length === 0 ? (
         <div style={{ 
           color: '#6c757d', 
           padding: '2rem', 
@@ -568,10 +351,10 @@ function EpicCard({ epic, index }: { epic: Epic; index: number }) {
       description={epic.description}
       isExpanded={isExpanded}
       onToggle={() => setIsExpanded(!isExpanded)}
-      badge={`${epic.features?.length || 0} feature${(epic.features?.length || 0) !== 1 ? 's' : ''}`}
+      badge={`${epic.features.length} feature${epic.features.length !== 1 ? 's' : ''}`}
       badgeColor="#0070f3"
     >
-      {!epic.features || epic.features.length === 0 ? (
+      {epic.features.length === 0 ? (
         <EmptyState message="No features in this epic" />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -589,7 +372,7 @@ function EpicCard({ epic, index }: { epic: Epic; index: number }) {
  */
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const totalItems = (feature.user_stories?.length || 0) + (feature.bugs?.length || 0);
+  const totalItems = feature.user_stories.length + feature.bugs.length;
 
   return (
     <CollapsibleCard
@@ -602,7 +385,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
       badgeColor="#6c5ce7"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-        {feature.user_stories && feature.user_stories.length > 0 && (
+        {feature.user_stories.length > 0 && (
           <div>
             <SectionHeader 
               title={`User Stories (${feature.user_stories.length})`} 
@@ -616,7 +399,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
           </div>
         )}
 
-        {feature.bugs && feature.bugs.length > 0 && (
+        {feature.bugs.length > 0 && (
           <div>
             <SectionHeader 
               title={`Bugs (${feature.bugs.length})`} 
@@ -639,7 +422,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
  */
 function UserStoryCard({ userStory }: { userStory: UserStory }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const totalItems = (userStory.tasks?.length || 0) + (userStory.sub_bugs?.length || 0);
+  const totalItems = userStory.tasks.length + userStory.sub_bugs.length;
 
   return (
     <CollapsibleCard
@@ -653,7 +436,7 @@ function UserStoryCard({ userStory }: { userStory: UserStory }) {
       borderColor="#0070f3"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
-        {userStory.tasks && userStory.tasks.length > 0 && (
+        {userStory.tasks.length > 0 && (
           <div>
             <SectionHeader title={`Tasks (${userStory.tasks.length})`} color="#333" size="small" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -664,7 +447,7 @@ function UserStoryCard({ userStory }: { userStory: UserStory }) {
           </div>
         )}
 
-        {userStory.sub_bugs && userStory.sub_bugs.length > 0 && (
+        {userStory.sub_bugs.length > 0 && (
           <div>
             <SectionHeader title={`Sub-bugs (${userStory.sub_bugs.length})`} color="#e74c3c" size="small" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -684,7 +467,7 @@ function UserStoryCard({ userStory }: { userStory: UserStory }) {
  */
 function BugCard({ bug }: { bug: Bug }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const totalItems = (bug.tasks?.length || 0) + (bug.sub_bugs?.length || 0);
+  const totalItems = bug.tasks.length + bug.sub_bugs.length;
 
   return (
     <CollapsibleCard
@@ -698,7 +481,7 @@ function BugCard({ bug }: { bug: Bug }) {
       borderColor="#e74c3c"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.75rem' }}>
-        {bug.tasks && bug.tasks.length > 0 && (
+        {bug.tasks.length > 0 && (
           <div>
             <SectionHeader title={`Tasks (${bug.tasks.length})`} color="#333" size="small" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -709,7 +492,7 @@ function BugCard({ bug }: { bug: Bug }) {
           </div>
         )}
 
-        {bug.sub_bugs && bug.sub_bugs.length > 0 && (
+        {bug.sub_bugs.length > 0 && (
           <div>
             <SectionHeader title={`Sub-bugs (${bug.sub_bugs.length})`} color="#e74c3c" size="small" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -745,14 +528,13 @@ function TaskCard({ task }: { task: Task }) {
       <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.75rem' }}>
         {task.description}
       </div>
-      {(() => {
-        const criteria = task.acceptance_criteria || (task as any).acceptanceCriteria || [];
-        return criteria.length > 0;
-      })() && (
-        <div>
-        <SectionHeader title="Acceptance Criteria" color="#333" size="small" />
-        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: '#6c757d' }}>
-          {(task.acceptance_criteria || (task as any).acceptanceCriteria || []).map((criteria: string, critIndex: number) => (
+      {task.acceptance_criteria.length > 0 && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e9ecef' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#495057', marginBottom: '0.5rem' }}>
+            Acceptance Criteria:
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: '#6c757d' }}>
+            {task.acceptance_criteria.map((criteria, critIndex) => (
               <li key={critIndex} style={{ marginBottom: '0.25rem' }}>{criteria}</li>
             ))}
           </ul>
@@ -783,7 +565,7 @@ function SubBugCard({ subBug }: { subBug: SubBug }) {
       <div style={{ fontSize: '0.875rem', color: '#6c757d', marginBottom: '0.75rem' }}>
         {subBug.description}
       </div>
-      {subBug.acceptance_criteria && subBug.acceptance_criteria.length > 0 && (
+      {subBug.acceptance_criteria.length > 0 && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #ffcccc' }}>
           <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#c92a2a', marginBottom: '0.5rem' }}>
             Acceptance Criteria:
@@ -847,13 +629,7 @@ function CollapsibleCard({
       }}
     >
       <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('Card toggle clicked:', title);
-          onToggle();
-        }}
+        onClick={onToggle}
         style={{
           width: '100%',
           padding: '1.25rem 1.5rem',
@@ -866,8 +642,6 @@ function CollapsibleCard({
           justifyContent: 'space-between',
           gap: '1rem',
           transition: 'background-color 0.2s ease',
-          zIndex: 1,
-          position: 'relative',
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = '#f8f9fa';
@@ -876,8 +650,8 @@ function CollapsibleCard({
           e.currentTarget.style.backgroundColor = 'transparent';
         }}
       >
-        <div style={{ flex: 1, pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', pointerEvents: 'none' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
             <span
               style={{
                 display: 'inline-flex',
@@ -892,7 +666,6 @@ function CollapsibleCard({
                 backgroundColor: '#f1f3f5',
                 borderRadius: '4px',
                 flexShrink: 0,
-                pointerEvents: 'none',
               }}
             >
               ▶
@@ -903,7 +676,6 @@ function CollapsibleCard({
                 fontSize: level === 0 ? '1.25rem' : level === 1 ? '1.1rem' : '1rem',
                 fontWeight: '600',
                 color: level === 0 ? '#0070f3' : level === 1 ? '#6c5ce7' : '#333',
-                pointerEvents: 'none',
               }}
             >
               {title}
@@ -917,7 +689,6 @@ function CollapsibleCard({
                   borderRadius: '12px',
                   fontSize: '0.75rem',
                   fontWeight: '500',
-                  pointerEvents: 'none',
                 }}
               >
                 {badge}
@@ -930,7 +701,6 @@ function CollapsibleCard({
               fontSize: '0.9375rem',
               color: '#6c757d',
               lineHeight: '1.6',
-              pointerEvents: 'none',
             }}
           >
             {description}
@@ -998,190 +768,6 @@ function EmptyState({ message }: { message: string }) {
       }}
     >
       {message}
-    </div>
-  );
-}
-
-/**
- * Export Buttons Component
- * Permite download dos documentos formatados
- */
-function ExportButtons({ 
-  exportData, 
-  projectName 
-}: { 
-  exportData: {
-    json?: string;
-    markdown?: string;
-    text?: string;
-    stats?: any;
-  };
-  projectName: string;
-}) {
-  const handleDownload = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const sanitizeFilename = (name: string) => {
-    return name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  };
-
-  const baseFilename = sanitizeFilename(projectName || 'backlog');
-
-  return (
-    <div style={{
-      marginTop: '2rem',
-      padding: '1.5rem',
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-    }}>
-      <h3 style={{
-        margin: '0 0 1rem 0',
-        fontSize: '1.125rem',
-        fontWeight: '600',
-        color: '#212529',
-      }}>
-        📥 Download de Documentos
-      </h3>
-      
-      {exportData.stats && (
-        <div style={{
-          marginBottom: '1rem',
-          padding: '0.75rem',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px',
-          fontSize: '0.875rem',
-          color: '#6c757d',
-        }}>
-          <strong>Estatísticas:</strong> {exportData.stats.totalEpics || 0} épicos, {' '}
-          {exportData.stats.totalFeatures || 0} features, {' '}
-          {exportData.stats.totalUserStories || 0} user stories, {' '}
-          {exportData.stats.totalTasks || 0} tasks
-        </div>
-      )}
-
-      <div style={{
-        display: 'flex',
-        gap: '0.75rem',
-        flexWrap: 'wrap',
-      }}>
-        {exportData.markdown && (
-          <button
-            type="button"
-            onClick={() => handleDownload(
-              exportData.markdown!,
-              `${baseFilename}_backlog.md`,
-              'text/markdown'
-            )}
-            style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              backgroundColor: '#0070f3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 4px -1px rgba(0, 112, 243, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#0051cc';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#0070f3';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            📄 Download Markdown (.md)
-          </button>
-        )}
-
-        {exportData.text && (
-          <button
-            type="button"
-            onClick={() => handleDownload(
-              exportData.text!,
-              `${baseFilename}_backlog.txt`,
-              'text/plain'
-            )}
-            style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 4px -1px rgba(108, 117, 125, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#5a6268';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#6c757d';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            📝 Download Texto (.txt)
-          </button>
-        )}
-
-        {exportData.json && (
-          <button
-            type="button"
-            onClick={() => handleDownload(
-              exportData.json!,
-              `${baseFilename}_backlog.json`,
-              'application/json'
-            )}
-            style={{
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 4px -1px rgba(40, 167, 69, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#218838';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#28a745';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            📦 Download JSON (.json)
-          </button>
-        )}
-      </div>
-
-      <p style={{
-        marginTop: '1rem',
-        fontSize: '0.75rem',
-        color: '#6c757d',
-        fontStyle: 'italic',
-      }}>
-        Os documentos contêm todas as user stories, tasks e descrições conforme exibidos nos cards acima.
-      </p>
     </div>
   );
 }

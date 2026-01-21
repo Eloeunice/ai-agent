@@ -3,6 +3,8 @@ import {
   generateStoriesInputSchema,
   generateStoriesOutputSchema,
 } from "../schemas/user_stories_Schema";
+import { storyPrompt } from "../prompts/userStoryPrompt";
+import { model } from "../ai/client";
 
 const log = {
   info: (msg: string, data?: unknown) =>
@@ -21,15 +23,9 @@ export const generateStoriesForFeatureTool = tool(
         generateStoriesInputSchema.parse(input);
 
       // 2️⃣ Gerar stories (LLM)
-      const rawOutput = {
-        stories: [
-          {
-            title: "Usuário pode se cadastrar",
-            description:
-              "Como usuário, quero me cadastrar no sistema para acessar as funcionalidades disponíveis.",
-          },
-        ],
-      };
+      const prompt = storyPrompt(featureTitle, featureDescription);
+      const llmResponse = await model.invoke(prompt);
+      const rawOutput = JSON.parse(llmResponse.content as string);
 
       // 3️⃣ Validar output
       const validatedOutput =
