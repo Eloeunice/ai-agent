@@ -4,6 +4,7 @@ export async function createWorkItem(data: {
   title: string;
   description?: string;
   type: string;
+  status: string;
   priority: string;
   project_id: string;
   parent_id?: string | null;
